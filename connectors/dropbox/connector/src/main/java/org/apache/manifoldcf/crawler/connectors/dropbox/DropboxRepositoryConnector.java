@@ -810,6 +810,10 @@ public class DropboxRepositoryConnector extends BaseRepositoryConnector {
             rd.setBinary(is, fileLength);
           }
 
+          
+          //documentURI
+          String documentURI = dropboxObject.path;
+          
           rd.addField("Modified", dropboxObject.modified);
           rd.addField("Size", dropboxObject.size);
           rd.addField("Path", dropboxObject.path);
@@ -817,6 +821,12 @@ public class DropboxRepositoryConnector extends BaseRepositoryConnector {
           rd.addField("ClientMtime", dropboxObject.clientMtime);
           rd.addField("mimeType", dropboxObject.mimeType);
           rd.addField("rev", dropboxObject.rev);
+          
+          if(dropboxObject.fileName()!=null){
+        	  rd.setFileName(dropboxObject.fileName());
+          }
+          
+          rd.addField("CSdocumentURI",activities.createConnectionSpecificString(documentURI));
 
           //ingestion
           String version = dropboxObject.rev;
@@ -824,11 +834,17 @@ public class DropboxRepositoryConnector extends BaseRepositoryConnector {
             version = StringUtils.EMPTY;
           }
 
-          //documentURI
-          String documentURI = dropboxObject.path;
+       
           activities.ingestDocument(nodeId, version, documentURI, rd);
 
-        } finally {
+        }
+        catch(Throwable si){
+        	//TODO Exception when crawling public dropbox - temporally just ignore this files
+        	
+        	Logging.connectors.error(si.getMessage(),si);
+        	
+        }        
+        finally {
           try {
             if (is != null) {
               is.close();
@@ -836,8 +852,10 @@ public class DropboxRepositoryConnector extends BaseRepositoryConnector {
           } catch (InterruptedIOException e) {
             errorCode = "Interrupted error";
             errorDesc = e.getMessage();
-            throw new ManifoldCFException(e.getMessage(), e,
-                ManifoldCFException.INTERRUPTED);
+            
+            Logging.connectors.error(e.getMessage(),e);
+            
+            throw new ManifoldCFException(e.getMessage(), e, ManifoldCFException.INTERRUPTED);
           } catch (IOException e) {
             errorCode = "IO ERROR";
             errorDesc = e.getMessage();
