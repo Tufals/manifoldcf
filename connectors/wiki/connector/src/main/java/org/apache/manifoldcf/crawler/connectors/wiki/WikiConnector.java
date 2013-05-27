@@ -59,10 +59,22 @@ import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.protocol.HttpContext;
 
 import org.apache.http.conn.ConnectTimeoutException;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.client.CircularRedirectException;
 import org.apache.http.NoHttpResponseException;
 import org.apache.http.HttpException;
 
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import java.io.*;
 import java.net.*;
@@ -181,6 +193,15 @@ public class WikiConnector extends org.apache.manifoldcf.crawler.connectors.Base
       
       baseURL = protocol + "://" + server + ((portString!=null)?":" + portString:"") + path + "/api.php?format=xml&";
 
+      
+      
+ 
+       
+	  	
+	  	
+      
+  
+      
       // Set up connection manager
       PoolingClientConnectionManager localConnectionManager = new PoolingClientConnectionManager();
       localConnectionManager.setMaxTotal(1);
@@ -220,13 +241,58 @@ public class WikiConnector extends org.apache.manifoldcf.crawler.connectors.Base
           localHttpClient.getCredentialsProvider().setCredentials(AuthScope.ANY, credentials);
       }
 
+      
+   
+      
+	
+	
+	
+	
+	
       httpClient = localHttpClient;
+      
+      
+      Scheme http = new Scheme("http", portString==null?80:Integer.parseInt(portString), PlainSocketFactory.getSocketFactory());
+ 		SSLSocketFactory sf = buildSSLSocketFactory();
+ 		Scheme https = new Scheme("https",portString==null?443:Integer.parseInt(portString), sf);
+ 		SchemeRegistry sr = httpClient.getConnectionManager().getSchemeRegistry();
+ 		sr.register(http);
+ 		sr.register(https);
+      
       
       loginToAPI();
       
       hasBeenSetup = true;
     }
   }
+  
+  
+  private SSLSocketFactory buildSSLSocketFactory() {
+		TrustStrategy ts = new TrustStrategy() {
+			@Override
+			public boolean isTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
+				return true; // heck yea!
+			}
+		};
+
+		SSLSocketFactory sf = null;
+
+		try {
+			/* build socket factory with hostname verification turned off. */
+			sf = new SSLSocketFactory(ts, SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+		} catch (NoSuchAlgorithmException e) {
+			Logging.connectors.error("WIKI: Failed to initialize SSL handling.", e);
+		} catch (KeyManagementException e) {
+			Logging.connectors.error("WIKI:Failed to initialize SSL handling.", e);
+		} catch (KeyStoreException e) {
+			Logging.connectors.error("WIKI:Failed to initialize SSL handling.", e);
+		} catch (UnrecoverableKeyException e) {
+			Logging.connectors.error("WIKI:Failed to initialize SSL handling.", e);
+		}
+
+		return sf;
+	}
+
 
   /** Log in via the Wiki API.
   * Call this method whenever login is apparently needed.
